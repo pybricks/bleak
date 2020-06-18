@@ -1,6 +1,6 @@
 """
 CentralManagerDelegate will implement the CBCentralManagerDelegate protocol to
-manage CoreBluetooth serivces and resources on the Central End
+manage CoreBluetooth services and resources on the Central End
 
 Created on June, 25 2019 by kevincar <kevincarrolldavis@gmail.com>
 
