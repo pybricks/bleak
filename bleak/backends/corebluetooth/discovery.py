@@ -23,7 +23,9 @@ async def discover(timeout: float = 5.0, **kwargs) -> List[BLEDevice]:
         timeout (float): duration of scanning period
 
     """
-    if not _manager.enabled:
+    try:
+        await _manager.waitForPowerOn_(0.1)
+    except asyncio.TimeoutError:
         raise BleakError("Bluetooth device is turned off")
 
     scan_options = {"timeout": timeout}
