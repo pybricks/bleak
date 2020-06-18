@@ -14,6 +14,7 @@ from bleak.backends.corebluetooth import CBAPP as cbapp
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 
+_manager = cbapp.central_manager_delegate
 
 async def discover(timeout: float = 5.0, **kwargs) -> List[BLEDevice]:
     """Perform a Bluetooth LE Scan.
@@ -22,17 +23,17 @@ async def discover(timeout: float = 5.0, **kwargs) -> List[BLEDevice]:
         timeout (float): duration of scanning period
 
     """
-    if not cbapp.central_manager_delegate.enabled:
+    if not _manager.enabled:
         raise BleakError("Bluetooth device is turned off")
 
     scan_options = {"timeout": timeout}
 
-    await cbapp.central_manager_delegate.scanForPeripherals_(scan_options)
+    await _manager.scanForPeripherals_(scan_options)
 
     # CoreBluetooth doesn't explicitly use MAC addresses to identify peripheral
     # devices because private devices may obscure their MAC addresses. To cope
     # with this, CoreBluetooth utilizes UUIDs for each peripheral. We'll use
     # this for the BLEDevice address on macOS
 
-    devices = cbapp.central_manager_delegate.devices
+    devices = _manager.devices
     return list(devices.values())

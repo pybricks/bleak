@@ -33,22 +33,23 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
 
     def __init__(self, **kwargs):
         super(BleakScannerCoreBluetooth, self).__init__(**kwargs)
+        self._manager = cbapp.central_manager_delegate
 
-        if not cbapp.central_manager_delegate.enabled:
+        if not self._manager.enabled:
             raise BleakError("Bluetooth device is turned off")
 
         self._timeout = kwargs.get("timeout", 5.0)
 
     async def start(self):
         # TODO: Evaluate if newer macOS than 10.11 has stopScan.
-        if hasattr(cbapp.central_manager_delegate, "stopScan_"):
-            await cbapp.central_manager_delegate.scanForPeripherals_()
+        if hasattr(self._manager, "stopScan_"):
+            await self._manager.scanForPeripherals_()
         else:
-            await cbapp.central_manager_delegate.scanForPeripherals_({"timeout": self._timeout})
+            await self._manager.scanForPeripherals_({"timeout": self._timeout})
 
     async def stop(self):
         try:
-            await cbapp.central_manager_delegate.stopScan_()
+            await self._manager.stopScan_()
         except Exception as e:
             logger.warning("stopScan method could not be called: {0}".format(e))
 
@@ -57,14 +58,14 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
 
     async def get_discovered_devices(self) -> List[BLEDevice]:
         found = []
-        peripherals = cbapp.central_manager_delegate.peripheral_list
+        peripherals = self._manager.peripheral_list
 
         for i, peripheral in enumerate(peripherals):
             address = peripheral.identifier().UUIDString()
             name = peripheral.name() or "Unknown"
             details = peripheral
 
-            advertisementData = cbapp.central_manager_delegate.advertisement_data_list[i]
+            advertisementData = self._manager.advertisement_data_list[i]
             manufacturer_binary_data = advertisementData.get("kCBAdvDataManufacturerData")
             manufacturer_data = {}
             if manufacturer_binary_data:
@@ -97,7 +98,7 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
     def is_scanning(self):
         # TODO: Evaluate if newer macOS than 10.11 has isScanning.
         try:
-            return cbapp.central_manager_delegate.isScanning_
+            return self._manager.isScanning_
         except:
             return None
 
