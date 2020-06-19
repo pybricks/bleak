@@ -154,6 +154,9 @@ class PeripheralDelegate(NSObject):
     ) -> bool:
         # TODO: Is the type hint for response correct? Should it be a NSInteger instead?
 
+        if response == CBCharacteristicWriteWithResponse and not self.peripheral.canSendWriteWithoutResponse():
+            raise BleakError("Attempting to write without response when not ready")
+
         cUUID = characteristic.UUID().UUIDString()
 
         event = self._characteristic_write_events.get_cleared(cUUID)
