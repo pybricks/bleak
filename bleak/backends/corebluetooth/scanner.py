@@ -33,6 +33,7 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
 
     def __init__(self, **kwargs):
         super(BleakScannerCoreBluetooth, self).__init__(**kwargs)
+        self._identifiers = None
         self._manager = cbapp.central_manager_delegate
         self._timeout = kwargs.get("timeout", 5.0)
 
@@ -42,6 +43,13 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
         except asyncio.TimeoutError:
             raise BleakError("Bluetooth device is turned off")
 
+        self._identifiers = {}
+
+        def callback(p, a, r):
+            self._identifiers[p.identifier()] = a
+
+        self._manager.callbacks[id(self)] = callback
+
         # TODO: Evaluate if newer macOS than 10.11 has stopScan.
         if hasattr(self._manager, "stopScan_"):
             await self._manager.scanForPeripherals_()
@@ -49,6 +57,7 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
             await self._manager.scanForPeripherals_({"timeout": self._timeout})
 
     async def stop(self):
+        del self._manager.callbacks[id(self)]
         try:
             await self._manager.stopScan_()
         except Exception as e:
@@ -59,14 +68,16 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
 
     async def get_discovered_devices(self) -> List[BLEDevice]:
         found = []
-        peripherals = self._manager.peripheral_list
+        peripherals = self._manager.central_manager.retrievePeripheralsWithIdentifiers_(
+            self._identifiers.keys(),
+        )
 
         for i, peripheral in enumerate(peripherals):
             address = peripheral.identifier().UUIDString()
             name = peripheral.name() or "Unknown"
             details = peripheral
 
-            advertisementData = self._manager.advertisement_data_list[i]
+            advertisementData = self._identifiers[peripheral.identifier()]
             manufacturer_binary_data = advertisementData.get("kCBAdvDataManufacturerData")
             manufacturer_data = {}
             if manufacturer_binary_data:
