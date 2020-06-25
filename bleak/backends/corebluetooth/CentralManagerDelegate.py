@@ -100,36 +100,21 @@ class CentralManagerDelegate(NSObject):
         """
         await asyncio.wait_for(self.powered_on_event.wait(), timeout)
 
-    async def scanForPeripherals_(self, scan_options) -> List[CBPeripheral]:
+    @objc.python_method
+    def start_scan(self):
         """
         Scan for peripheral devices
-        scan_options = { service_uuids, timeout }
+        scan_options = { service_uuids }
         """
+        logger.debug("start_scan")
         # remove old
         self.devices = {}
-        service_uuids = []
-        if "service_uuids" in scan_options:
-            service_uuids_str = scan_options["service_uuids"]
-            service_uuids = NSArray.alloc().initWithArray_(
-                list(map(string2uuid, service_uuids_str))
-            )
+        self.central_manager.scanForPeripheralsWithServices_options_(None, None)
 
-        timeout = 0
-        if "timeout" in scan_options:
-            timeout = float(scan_options["timeout"])
-
-        self.central_manager.scanForPeripheralsWithServices_options_(
-            service_uuids, None
-        )
-
-        if timeout > 0:
-            await asyncio.sleep(timeout)
-
+    @objc.python_method
+    def stop_scan(self):
+        logger.debug("stop_scan")
         self.central_manager.stopScan()
-        while self.central_manager.isScanning():
-            await asyncio.sleep(0.1)
-
-        return []
 
     async def connect_(self, peripheral: CBPeripheral) -> bool:
         self._connection_state = CMDConnectionState.PENDING

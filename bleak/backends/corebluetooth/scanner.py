@@ -52,19 +52,11 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
                 self._callback((p, a, r))
 
         self._manager.callbacks[id(self)] = callback
-
-        # TODO: Evaluate if newer macOS than 10.11 has stopScan.
-        if hasattr(self._manager, "stopScan_"):
-            await self._manager.scanForPeripherals_()
-        else:
-            await self._manager.scanForPeripherals_({"timeout": self._timeout})
+        self._manager.start_scan()
 
     async def stop(self):
         del self._manager.callbacks[id(self)]
-        try:
-            await self._manager.stopScan_()
-        except Exception as e:
-            logger.warning("stopScan method could not be called: {0}".format(e))
+        self._manager.stop_scan()
 
     async def set_scanning_filter(self, **kwargs):
         raise NotImplementedError("Need to evaluate which macOS versions to support first...")
