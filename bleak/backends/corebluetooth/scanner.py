@@ -4,7 +4,7 @@ import pathlib
 import uuid
 from typing import Callable, Any, Union, List
 
-from bleak.backends.corebluetooth import CBAPP as cbapp
+from bleak.backends.corebluetooth.CentralManagerDelegate import CentralManagerDelegate
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak.backends.scanner import BaseBleakScanner
@@ -35,7 +35,7 @@ class BleakScannerCoreBluetooth(BaseBleakScanner):
         super(BleakScannerCoreBluetooth, self).__init__(**kwargs)
         self._callback = None
         self._identifiers = None
-        self._manager = cbapp.central_manager_delegate
+        self._manager = CentralManagerDelegate.alloc().init()
         self._timeout = kwargs.get("timeout", 5.0)
 
     async def start(self):

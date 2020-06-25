@@ -12,7 +12,6 @@ from Foundation import NSData, CBUUID
 from CoreBluetooth import CBCharacteristicWriteWithResponse, CBCharacteristicWriteWithoutResponse
 
 from bleak.backends.client import BaseBleakClient
-from bleak.backends.corebluetooth import CBAPP as cbapp
 from bleak.backends.corebluetooth.characteristic import (
     BleakGATTCharacteristicCoreBluetooth
 )
@@ -45,7 +44,6 @@ class BleakClientCoreBluetooth(BaseBleakClient):
         self._services = None
 
         self._disconnected_callback = None
-        self._manager = cbapp.central_manager_delegate
 
     def __str__(self):
         return "BleakClientCoreBluetooth ({})".format(self.address)
@@ -75,7 +73,8 @@ class BleakClientCoreBluetooth(BaseBleakClient):
 
         logger.debug("Connecting to BLE device @ {}".format(self.address))
 
-        await self._manager.connect_(sought_device[0].details)
+        manager = self._device_info.manager().delegate()
+        await manager.connect_(sought_device[0].details)
 
         # Now get services
         await self.get_services()
@@ -84,12 +83,14 @@ class BleakClientCoreBluetooth(BaseBleakClient):
 
     async def disconnect(self) -> bool:
         """Disconnect from the peripheral device"""
-        await self._manager.disconnect()
+        manager = self._device_info.manager().delegate()
+        await manager.disconnect()
         return True
 
     async def is_connected(self) -> bool:
         """Checks for current active connection"""
-        return self._manager.isConnected
+        manager = self._device_info.manager().delegate()
+        return manager.isConnected
 
     def set_disconnected_callback(
         self, callback: Callable[[BaseBleakClient], None], **kwargs
@@ -99,8 +100,9 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             callback: callback to be called on disconnection.
 
         """
+        manager = self._device_info.manager().delegate()
         self._disconnected_callback = callback
-        self._manager.disconnected_callback = (
+        manager.disconnected_callback = (
             self._disconnect_callback_client
         )
 
@@ -125,8 +127,9 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             return self._services
 
         logger.debug("Retrieving services...")
+        manager = self._device_info.manager().delegate()
         services = (
-            await self._manager.connected_peripheral_delegate.discoverServices()
+            await manager.connected_peripheral_delegate.discoverServices()
         )
 
         for service in services:
@@ -134,7 +137,7 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             logger.debug(
                 "Retrieving characteristics for service {}".format(serviceUUID)
             )
-            characteristics = await self._manager.connected_peripheral_delegate.discoverCharacteristics_(
+            characteristics = await manager.connected_peripheral_delegate.discoverCharacteristics_(
                 service
             )
 
@@ -145,7 +148,7 @@ class BleakClientCoreBluetooth(BaseBleakClient):
                 logger.debug(
                     "Retrieving descriptors for characteristic {}".format(cUUID)
                 )
-                descriptors = await self._manager.connected_peripheral_delegate.discoverDescriptors_(
+                descriptors = await manager.connected_peripheral_delegate.discoverDescriptors_(
                     characteristic
                 )
 
@@ -176,12 +179,13 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             (bytearray) The read data.
 
         """
+        manager = self._device_info.manager().delegate()
         _uuid = await self.get_appropriate_uuid(str(_uuid))
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
             raise BleakError("Characteristic {} was not found!".format(_uuid))
 
-        output = await self._manager.connected_peripheral_delegate.readCharacteristic_(
+        output = await manager.connected_peripheral_delegate.readCharacteristic_(
             characteristic.obj, use_cached=use_cached
         )
         value = bytearray(output)
@@ -201,11 +205,12 @@ class BleakClientCoreBluetooth(BaseBleakClient):
         Returns:
             (bytearray) The read data.
         """
+        manager = self._device_info.manager().delegate()
         descriptor = self.services.get_descriptor(handle)
         if not descriptor:
             raise BleakError("Descriptor {} was not found!".format(handle))
 
-        output = await self._manager.connected_peripheral_delegate.readDescriptor_(
+        output = await manager.connected_peripheral_delegate.readDescriptor_(
             descriptor.obj, use_cached=use_cached
         )
         if isinstance(
@@ -228,13 +233,14 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             response (bool): If write-with-response operation should be done. Defaults to `False`.
 
         """
+        manager = self._device_info.manager().delegate()
         _uuid = await self.get_appropriate_uuid(str(_uuid))
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
             raise BleakError("Characteristic {} was not found!".format(_uuid))
 
         value = NSData.alloc().initWithBytes_length_(data, len(data))
-        success = await self._manager.connected_peripheral_delegate.writeCharacteristic_value_type_(
+        success = await manager.connected_peripheral_delegate.writeCharacteristic_value_type_(
             characteristic.obj,
             value,
             CBCharacteristicWriteWithResponse if response else CBCharacteristicWriteWithoutResponse
@@ -256,12 +262,13 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             data (bytes or bytearray): The data to send.
 
         """
+        manager = self._device_info.manager().delegate()
         descriptor = self.services.get_descriptor(handle)
         if not descriptor:
             raise BleakError("Descriptor {} was not found!".format(handle))
 
         value = NSData.alloc().initWithBytes_length_(data, len(data))
-        success = await self._manager.connected_peripheral_delegate.writeDescriptor_value_(
+        success = await manager.connected_peripheral_delegate.writeDescriptor_value_(
             descriptor.obj, value
         )
         if success:
@@ -292,12 +299,13 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             callback (function): The function to be called on notification.
 
         """
+        manager = self._device_info.manager().delegate()
         _uuid = await self.get_appropriate_uuid(str(_uuid))
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
             raise BleakError("Characteristic {0} not found!".format(_uuid))
 
-        success = await self._manager.connected_peripheral_delegate.startNotify_cb_(
+        success = await manager.connected_peripheral_delegate.startNotify_cb_(
             characteristic.obj, callback
         )
         if not success:
@@ -314,12 +322,13 @@ class BleakClientCoreBluetooth(BaseBleakClient):
             _uuid: The characteristic to stop notifying/indicating on.
 
         """
+        manager = self._device_info.manager().delegate()
         _uuid = await self.get_appropriate_uuid(str(_uuid))
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
             raise BleakError("Characteristic {} not found!".format(_uuid))
 
-        success = await self._manager.connected_peripheral_delegate.stopNotify_(
+        success = await manager.connected_peripheral_delegate.stopNotify_(
             characteristic.obj
         )
         if not success:
