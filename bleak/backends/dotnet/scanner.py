@@ -133,7 +133,7 @@ class BleakScannerDotNet(BaseBleakScanner):
         for event_args in list(self._devices.values()):
             new_device = self.parse_eventargs(event_args)
             if (
-                not new_device.name
+                (not new_device.name or new_device.name == "Unknown")
                 and event_args.BluetoothAddress in self._scan_responses
             ):
                 new_device.name = self._scan_responses[
